@@ -1,7 +1,7 @@
 package com.mojang.minecraft.particle;
 
-import com.mojang.minecraft.Player;
 import com.mojang.minecraft.level.Level;
+import com.mojang.minecraft.player.Player;
 import com.mojang.minecraft.renderer.Tesselator;
 import com.mojang.minecraft.renderer.Textures;
 import java.util.ArrayList;
@@ -16,40 +16,27 @@ public final class ParticleEngine {
 		this.textures = var2;
 	}
 
-	public final void render(Player var1, float var2, int var3) {
+	public final void render(Player var1, float var2) {
 		if(this.particles.size() != 0) {
 			GL11.glEnable(GL11.GL_TEXTURE_2D);
-			int var4 = this.textures.loadTexture("/terrain.png", 9728);
-			GL11.glBindTexture(GL11.GL_TEXTURE_2D, var4);
-			float var26 = -((float)Math.cos((double)var1.yRot * Math.PI / 180.0D));
-			float var5 = -((float)Math.sin((double)var1.yRot * Math.PI / 180.0D));
-			float var6 = -var5 * (float)Math.sin((double)var1.xRot * Math.PI / 180.0D);
-			float var7 = var26 * (float)Math.sin((double)var1.xRot * Math.PI / 180.0D);
-			float var25 = (float)Math.cos((double)var1.xRot * Math.PI / 180.0D);
-			Tesselator var8 = Tesselator.instance;
-			GL11.glColor4f(0.8F, 0.8F, 0.8F, 1.0F);
-			var8.begin();
+			int var3 = this.textures.loadTexture("/terrain.png", 9728);
+			GL11.glBindTexture(GL11.GL_TEXTURE_2D, var3);
+			float var12 = -((float)Math.cos((double)var1.yRot * Math.PI / 180.0D));
+			float var4 = -((float)Math.sin((double)var1.yRot * Math.PI / 180.0D));
+			float var5 = -var4 * (float)Math.sin((double)var1.xRot * Math.PI / 180.0D);
+			float var6 = var12 * (float)Math.sin((double)var1.xRot * Math.PI / 180.0D);
+			float var11 = (float)Math.cos((double)var1.xRot * Math.PI / 180.0D);
+			Tesselator var7 = Tesselator.instance;
+			var7.begin();
 
-			for(int var9 = 0; var9 < this.particles.size(); ++var9) {
-				Particle var10 = (Particle)this.particles.get(var9);
-				if(var10.isLit() ^ var3 == 1) {
-					float var18 = ((float)(var10.tex % 16) + var10.uo / 4.0F) / 16.0F;
-					float var19 = var18 + 0.999F / 64.0F;
-					float var20 = ((float)(var10.tex / 16) + var10.vo / 4.0F) / 16.0F;
-					float var21 = var20 + 0.999F / 64.0F;
-					float var22 = 0.1F * var10.size;
-					float var23 = var10.xo + (var10.x - var10.xo) * var2;
-					float var24 = var10.yo + (var10.y - var10.yo) * var2;
-					float var27 = var10.zo + (var10.z - var10.zo) * var2;
-					var8.vertexUV(var23 - var26 * var22 - var6 * var22, var24 - var25 * var22, var27 - var5 * var22 - var7 * var22, var18, var21);
-					var8.vertexUV(var23 - var26 * var22 + var6 * var22, var24 + var25 * var22, var27 - var5 * var22 + var7 * var22, var18, var20);
-					var8.vertexUV(var23 + var26 * var22 + var6 * var22, var24 + var25 * var22, var27 + var5 * var22 + var7 * var22, var19, var20);
-					var8.vertexUV(var23 + var26 * var22 - var6 * var22, var24 - var25 * var22, var27 + var5 * var22 - var7 * var22, var19, var21);
-				}
+			for(int var8 = 0; var8 < this.particles.size(); ++var8) {
+				Particle var9 = (Particle)this.particles.get(var8);
+				float var10 = 0.8F * var9.getBrightness();
+				var7.color(var10, var10, var10);
+				var9.render(var7, var2, var12, var11, var4, var5, var6);
 			}
 
-			var8.end();
-			GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+			var7.end();
 			GL11.glDisable(GL11.GL_TEXTURE_2D);
 		}
 	}

@@ -5,7 +5,7 @@ import org.lwjgl.opengl.GL11;
 public final class PauseScreen extends Screen {
 	public final void init() {
 		this.buttons.clear();
-		this.buttons.add(new Button(0, this.width / 2 - 100, this.height / 3, 200, 20, "Generate new level"));
+		this.buttons.add(new Button(0, this.width / 2 - 100, this.height / 3, 200, 20, "Generate new level..."));
 		this.buttons.add(new Button(1, this.width / 2 - 100, this.height / 3 + 32, 200, 20, "Save level.."));
 		this.buttons.add(new Button(2, this.width / 2 - 100, this.height / 3 + 64, 200, 20, "Load level.."));
 		this.buttons.add(new Button(3, this.width / 2 - 100, this.height / 3 + 96, 200, 20, "Back to game"));
@@ -18,9 +18,7 @@ public final class PauseScreen extends Screen {
 
 	protected final void buttonClicked(Button var1) {
 		if(var1.id == 0) {
-			this.minecraft.generateNewLevel();
-			this.minecraft.setScreen((Screen)null);
-			this.minecraft.grabMouse();
+			this.minecraft.setScreen(new NewLevelScreen(this));
 		}
 
 		if(this.minecraft.user != null) {

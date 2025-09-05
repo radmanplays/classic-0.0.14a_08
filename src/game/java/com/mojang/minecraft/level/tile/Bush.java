@@ -29,7 +29,7 @@ public final class Bush extends Tile {
 			float var18 = var17 + 0.999F / 16.0F;
 			float var16 = (float)(var15 / 16) / 16.0F;
 			float var7 = var16 + 0.999F / 16.0F;
-			var1.color((int)255, (int)255, (int)255);
+			var1.color(255, 255, 255);
 
 			for(int var8 = 0; var8 < 2; ++var8) {
 				float var9 = (float)(Math.sin((double)var8 * Math.PI / (double)2 + Math.PI * 0.25D) * 0.5D);

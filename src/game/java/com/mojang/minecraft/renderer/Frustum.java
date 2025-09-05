@@ -85,21 +85,17 @@ public final class Frustum {
 		var0[var1][3] /= var2;
 	}
 
-	public final boolean cubeInFrustum(AABB var1) {
-		float var6 = var1.z1;
-		float var5 = var1.y1;
-		float var4 = var1.x1;
-		float var3 = var1.z0;
-		float var2 = var1.y0;
-		float var9 = var1.x0;
-		Frustum var8 = this;
-
+	public final boolean cubeInFrustum(float var1, float var2, float var3, float var4, float var5, float var6) {
 		for(int var7 = 0; var7 < 6; ++var7) {
-			if(var8.m_Frustum[var7][0] * var9 + var8.m_Frustum[var7][1] * var2 + var8.m_Frustum[var7][2] * var3 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var4 + var8.m_Frustum[var7][1] * var2 + var8.m_Frustum[var7][2] * var3 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var9 + var8.m_Frustum[var7][1] * var5 + var8.m_Frustum[var7][2] * var3 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var4 + var8.m_Frustum[var7][1] * var5 + var8.m_Frustum[var7][2] * var3 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var9 + var8.m_Frustum[var7][1] * var2 + var8.m_Frustum[var7][2] * var6 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var4 + var8.m_Frustum[var7][1] * var2 + var8.m_Frustum[var7][2] * var6 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var9 + var8.m_Frustum[var7][1] * var5 + var8.m_Frustum[var7][2] * var6 + var8.m_Frustum[var7][3] <= 0.0F && var8.m_Frustum[var7][0] * var4 + var8.m_Frustum[var7][1] * var5 + var8.m_Frustum[var7][2] * var6 + var8.m_Frustum[var7][3] <= 0.0F) {
+			if(this.m_Frustum[var7][0] * var1 + this.m_Frustum[var7][1] * var2 + this.m_Frustum[var7][2] * var3 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var4 + this.m_Frustum[var7][1] * var2 + this.m_Frustum[var7][2] * var3 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var1 + this.m_Frustum[var7][1] * var5 + this.m_Frustum[var7][2] * var3 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var4 + this.m_Frustum[var7][1] * var5 + this.m_Frustum[var7][2] * var3 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var1 + this.m_Frustum[var7][1] * var2 + this.m_Frustum[var7][2] * var6 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var4 + this.m_Frustum[var7][1] * var2 + this.m_Frustum[var7][2] * var6 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var1 + this.m_Frustum[var7][1] * var5 + this.m_Frustum[var7][2] * var6 + this.m_Frustum[var7][3] <= 0.0F && this.m_Frustum[var7][0] * var4 + this.m_Frustum[var7][1] * var5 + this.m_Frustum[var7][2] * var6 + this.m_Frustum[var7][3] <= 0.0F) {
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	public final boolean isVisible(AABB var1) {
+		return this.cubeInFrustum(var1.x0, var1.y0, var1.z0, var1.x1, var1.y1, var1.z1);
 	}
 }

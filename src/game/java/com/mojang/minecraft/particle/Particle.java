@@ -2,17 +2,18 @@ package com.mojang.minecraft.particle;
 
 import com.mojang.minecraft.Entity;
 import com.mojang.minecraft.level.Level;
+import com.mojang.minecraft.renderer.Tesselator;
 
-public final class Particle extends Entity {
+public class Particle extends Entity {
 	private float xd;
 	private float yd;
 	private float zd;
 	public int tex;
-	float uo;
-	float vo;
+	private float uo;
+	private float vo;
 	private int age = 0;
 	private int lifetime = 0;
-	float size;
+	private float size;
 
 	public Particle(Level var1, float var2, float var3, float var4, float var5, float var6, float var7, int var8) {
 		super(var1);
@@ -35,12 +36,12 @@ public final class Particle extends Entity {
 		this.age = 0;
 	}
 
-	public final void tick() {
+	public void tick() {
 		this.xo = this.x;
 		this.yo = this.y;
 		this.zo = this.z;
 		if(this.age++ >= this.lifetime) {
-			super.removed = true;
+			this.remove();
 		}
 
 		this.yd = (float)((double)this.yd - 0.04D);
@@ -53,5 +54,20 @@ public final class Particle extends Entity {
 			this.zd *= 0.7F;
 		}
 
+	}
+
+	public void render(Tesselator var1, float var2, float var3, float var4, float var5, float var6, float var7) {
+		float var8 = ((float)(this.tex % 16) + this.uo / 4.0F) / 16.0F;
+		float var9 = var8 + 0.999F / 64.0F;
+		float var10 = ((float)(this.tex / 16) + this.vo / 4.0F) / 16.0F;
+		float var11 = var10 + 0.999F / 64.0F;
+		float var12 = 0.1F * this.size;
+		float var13 = this.xo + (this.x - this.xo) * var2;
+		float var14 = this.yo + (this.y - this.yo) * var2;
+		float var15 = this.zo + (this.z - this.zo) * var2;
+		var1.vertexUV(var13 - var3 * var12 - var6 * var12, var14 - var4 * var12, var15 - var5 * var12 - var7 * var12, var8, var11);
+		var1.vertexUV(var13 - var3 * var12 + var6 * var12, var14 + var4 * var12, var15 - var5 * var12 + var7 * var12, var8, var10);
+		var1.vertexUV(var13 + var3 * var12 + var6 * var12, var14 + var4 * var12, var15 + var5 * var12 + var7 * var12, var9, var10);
+		var1.vertexUV(var13 + var3 * var12 - var6 * var12, var14 - var4 * var12, var15 + var5 * var12 - var7 * var12, var9, var11);
 	}
 }

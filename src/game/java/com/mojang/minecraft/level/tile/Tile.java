@@ -1,10 +1,10 @@
 package com.mojang.minecraft.level.tile;
 
-import com.mojang.minecraft.Player;
 import com.mojang.minecraft.level.Level;
 import com.mojang.minecraft.particle.Particle;
 import com.mojang.minecraft.particle.ParticleEngine;
 import com.mojang.minecraft.phys.AABB;
+import com.mojang.minecraft.player.Player;
 import com.mojang.minecraft.renderer.Tesselator;
 import java.util.Random;
 
@@ -14,11 +14,21 @@ public class Tile {
 	public static final Tile rock = new Tile(1, 1);
 	public static final Tile grass = new GrassTile(2);
 	public static final Tile dirt = new DirtTile(3, 2);
-	public static final Tile unbreakable;
-	public static final Tile water;
-	public static final Tile calmWater;
-	public static final Tile lava;
-	public static final Tile calmLava;
+	public static final Tile stoneBrick = new Tile(4, 16);
+	public static final Tile wood = new Tile(5, 4);
+	public static final Tile bush = new Bush(6);
+	public static final Tile unbreakable = new Tile(7, 17);
+	public static final Tile water = new LiquidTile(8, 1);
+	public static final Tile calmWater = new CalmLiquidTile(9, 1);
+	public static final Tile lava = new LiquidTile(10, 2);
+	public static final Tile calmLava = new CalmLiquidTile(11, 2);
+	public static final Tile sand = new FallingTile(12, 18);
+	public static final Tile gravel = new FallingTile(13, 19);
+	public static final Tile oreGold = new Tile(14, 32);
+	public static final Tile oreIron = new Tile(15, 33);
+	public static final Tile oreCoal = new Tile(16, 34);
+	public static final Tile log = new LogTile(17);
+	public static final Tile leaf = new LeafTile(18, 22);
 	public int tex;
 	public final int id;
 	private float xx0;
@@ -29,6 +39,7 @@ public class Tile {
 	private float zz1;
 
 	protected Tile(int var1) {
+		new Random();
 		tiles[var1] = this;
 		this.id = var1;
 		this.setShape(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
@@ -52,54 +63,86 @@ public class Tile {
 		this.tex = var2;
 	}
 
-	public boolean render(Tesselator t, Level level, int layer, int x, int y, int z) {
-		float c1 = 1.0F;
-		float c2 = 0.8F;
-		float c3 = 0.6F;
-		if(this.shouldRenderFace(level, x, y - 1, z, layer, 0)) {
-			t.color(c1, c1, c1);
-			this.renderFace(t, x, y, z, 0);
+	public boolean render(Tesselator var1, Level var2, int var3, int var4, int var5, int var6) {
+		boolean var7 = false;
+		float var8 = 0.8F;
+		float var9 = 0.6F;
+		float var10;
+		if(this.shouldRenderFace(var2, var4, var5 - 1, var6, var3, 0)) {
+			var10 = var2.getBrightness(var4, var5 - 1, var6);
+			var1.color(var10 * 1.0F, var10 * 1.0F, var10 * 1.0F);
+			this.renderFace(var1, var4, var5, var6, 0);
+			var7 = true;
 		}
 
-		if(this.shouldRenderFace(level, x, y + 1, z, layer, 1)) {
-			t.color(c1, c1, c1);
-			this.renderFace(t, x, y, z, 1);
+		if(this.shouldRenderFace(var2, var4, var5 + 1, var6, var3, 1)) {
+			var10 = var2.getBrightness(var4, var5 + 1, var6);
+			var1.color(var10 * 1.0F, var10 * 1.0F, var10 * 1.0F);
+			this.renderFace(var1, var4, var5, var6, 1);
+			var7 = true;
 		}
 
-		if(this.shouldRenderFace(level, x, y, z - 1, layer, 2)) {
-			t.color(c2, c2, c2);
-			this.renderFace(t, x, y, z, 2);
+		if(this.shouldRenderFace(var2, var4, var5, var6 - 1, var3, 2)) {
+			var10 = var2.getBrightness(var4, var5, var6 - 1);
+			var1.color(var8 * var10, var8 * var10, var8 * var10);
+			this.renderFace(var1, var4, var5, var6, 2);
+			var7 = true;
 		}
 
-		if(this.shouldRenderFace(level, x, y, z + 1, layer, 3)) {
-			t.color(c2, c2, c2);
-			this.renderFace(t, x, y, z, 3);
+		if(this.shouldRenderFace(var2, var4, var5, var6 + 1, var3, 3)) {
+			var10 = var2.getBrightness(var4, var5, var6 + 1);
+			var1.color(var8 * var10, var8 * var10, var8 * var10);
+			this.renderFace(var1, var4, var5, var6, 3);
+			var7 = true;
 		}
 
-		if(this.shouldRenderFace(level, x - 1, y, z, layer, 4)) {
-			t.color(c3, c3, c3);
-			this.renderFace(t, x, y, z, 4);
+		if(this.shouldRenderFace(var2, var4 - 1, var5, var6, var3, 4)) {
+			var10 = var2.getBrightness(var4 - 1, var5, var6);
+			var1.color(var9 * var10, var9 * var10, var9 * var10);
+			this.renderFace(var1, var4, var5, var6, 4);
+			var7 = true;
 		}
 
-		if(this.shouldRenderFace(level, x + 1, y, z, layer, 5)) {
-			t.color(c3, c3, c3);
-			this.renderFace(t, x, y, z, 5);
+		if(this.shouldRenderFace(var2, var4 + 1, var5, var6, var3, 5)) {
+			var10 = var2.getBrightness(var4 + 1, var5, var6);
+			var1.color(var9 * var10, var9 * var10, var9 * var10);
+			this.renderFace(var1, var4, var5, var6, 5);
+			var7 = true;
 		}
-		return true;
+
+		return var7;
+	}
+
+	public static boolean cullFace(Level var0, int var1, int var2, int var3, int var4) {
+		if(var4 == 0) {
+			--var2;
+		}
+
+		if(var4 == 1) {
+			++var2;
+		}
+
+		if(var4 == 2) {
+			--var3;
+		}
+
+		if(var4 == 3) {
+			++var3;
+		}
+
+		if(var4 == 4) {
+			--var1;
+		}
+
+		if(var4 == 5) {
+			++var1;
+		}
+
+		return !var0.isSolidTile(var1, var2, var3);
 	}
 
 	protected boolean shouldRenderFace(Level var1, int var2, int var3, int var4, int var5, int var6) {
-		boolean var7 = true;
-		if(var5 == 2) {
-			return false;
-		} else {
-			if(var5 >= 0) {
-				var7 = var1.isLit(var2, var3, var4) ^ var5 == 1;
-			}
-
-			Tile var8 = tiles[var1.getTile(var2, var3, var4)];
-			return !(var8 == null ? false : var8.isSolid()) && var7;
-		}
+		return var5 == 1 ? false : !var1.isSolidTile(var2, var3, var4);
 	}
 
 	protected int getTexture(int var1) {
@@ -276,7 +319,7 @@ public class Tile {
 		return true;
 	}
 
-	public boolean mayTick() {
+	public boolean mayPick() {
 		return true;
 	}
 
@@ -305,14 +348,6 @@ public class Tile {
 	public void neighborChanged(Level var1, int var2, int var3, int var4, int var5) {
 	}
 
-	static {
-		new Tile(4, 16);
-		new Tile(5, 4);
-		new Bush(6);
-		unbreakable = new Tile(7, 17);
-		water = new LiquidTile(8, 1);
-		calmWater = new CalmLiquidTile(9, 1);
-		lava = new LiquidTile(10, 2);
-		calmLava = new CalmLiquidTile(11, 2);
+	public void onBlockAdded(Level var1, int var2, int var3, int var4) {
 	}
 }

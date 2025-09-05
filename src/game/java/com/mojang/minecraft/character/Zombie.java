@@ -5,32 +5,30 @@ import com.mojang.minecraft.level.Level;
 import com.mojang.minecraft.renderer.Textures;
 import org.lwjgl.opengl.GL11;
 
-public final class Zombie extends Entity {
-	private float rot;
-	private float timeOffs;
-	private float speed;
-	private float rotA;
+public class Zombie extends Entity {
+	public static final long serialVersionUID = 77479605454997290L;
 	private static ZombieModel zombieModel = new ZombieModel();
-	private Textures textures;
+	public float rot;
+	public float timeOffs;
+	public float speed;
+	public float rotA = (float)(Math.random() + 1.0D) * 0.01F;
 
-	public Zombie(Level var1, Textures var2, float var3, float var4, float var5) {
+	public Zombie(Level var1, float var2, float var3, float var4) {
 		super(var1);
-		this.textures = var2;
-		this.rotA = (float)(Math.random() + 1.0D) * 0.01F;
-		this.setPos(var3, var4, var5);
+		this.setPos(var2, var3, var4);
 		this.timeOffs = (float)Math.random() * 1239813.0F;
 		this.rot = (float)(Math.random() * Math.PI * 2.0D);
 		this.speed = 1.0F;
 	}
 
-	public final void tick() {
+	public void tick() {
 		this.xo = this.x;
 		this.yo = this.y;
 		this.zo = this.z;
 		float var1 = 0.0F;
 		float var2 = 0.0F;
 		if(this.y < -100.0F) {
-			super.removed = true;
+			this.remove();
 		}
 
 		this.rot += this.rotA;
@@ -55,29 +53,31 @@ public final class Zombie extends Entity {
 
 	}
 
-	public final void render(float var1) {
+	public void render(Textures var1, float var2) {
 		GL11.glEnable(GL11.GL_TEXTURE_2D);
-		GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textures.loadTexture("/char.png", GL11.GL_NEAREST));
+		GL11.glBindTexture(GL11.GL_TEXTURE_2D, var1.loadTexture("/char.png", GL11.GL_NEAREST));
 		GL11.glPushMatrix();
-		double var2 = (double)System.nanoTime() / 1.0E9D * 10.0D * (double)this.speed + (double)this.timeOffs;
-		float var4 = 0.058333334F;
-		float var5 = (float)(-Math.abs(Math.sin(var2 * 0.6662D)) * 5.0D - 23.0D);
-		GL11.glTranslatef(this.xo + (this.x - this.xo) * var1, this.yo + (this.y - this.yo) * var1, this.zo + (this.z - this.zo) * var1);
+		double var3 = (double)System.nanoTime() / 1.0E9D * 10.0D * (double)this.speed + (double)this.timeOffs;
+		float var7 = this.getBrightness();
+		GL11.glColor3f(var7, var7, var7);
+		var7 = 0.058333334F;
+		float var5 = (float)(-Math.abs(Math.sin(var3 * 0.6662D)) * 5.0D - 23.0D);
+		GL11.glTranslatef(this.xo + (this.x - this.xo) * var2, this.yo + (this.y - this.yo) * var2, this.zo + (this.z - this.zo) * var2);
 		GL11.glScalef(1.0F, -1.0F, 1.0F);
-		GL11.glScalef(var4, var4, var4);
+		GL11.glScalef(var7, var7, var7);
 		GL11.glTranslatef(0.0F, var5, 0.0F);
-		var1 = 57.29578F;
-		GL11.glRotatef(this.rot * var1 + 180.0F, 0.0F, 1.0F, 0.0F);
-		var1 = (float)var2;
+		var7 = 57.29578F;
+		GL11.glRotatef(this.rot * var7 + 180.0F, 0.0F, 1.0F, 0.0F);
+		var7 = (float)var3;
 		ZombieModel var6 = zombieModel;
-		var6.head.yRot = (float)Math.sin((double)var1 * 0.83D);
-		var6.head.xRot = (float)Math.sin((double)var1) * 0.8F;
-		var6.arm0.xRot = (float)Math.sin((double)var1 * 0.6662D + Math.PI) * 2.0F;
-		var6.arm0.zRot = (float)(Math.sin((double)var1 * 0.2312D) + 1.0D);
-		var6.arm1.xRot = (float)Math.sin((double)var1 * 0.6662D) * 2.0F;
-		var6.arm1.zRot = (float)(Math.sin((double)var1 * 0.2812D) - 1.0D);
-		var6.leg0.xRot = (float)Math.sin((double)var1 * 0.6662D) * 1.4F;
-		var6.leg1.xRot = (float)Math.sin((double)var1 * 0.6662D + Math.PI) * 1.4F;
+		var6.head.yRot = (float)Math.sin((double)var7 * 0.83D);
+		var6.head.xRot = (float)Math.sin((double)var7) * 0.8F;
+		var6.arm0.xRot = (float)Math.sin((double)var7 * 0.6662D + Math.PI) * 2.0F;
+		var6.arm0.zRot = (float)(Math.sin((double)var7 * 0.2312D) + 1.0D);
+		var6.arm1.xRot = (float)Math.sin((double)var7 * 0.6662D) * 2.0F;
+		var6.arm1.zRot = (float)(Math.sin((double)var7 * 0.2812D) - 1.0D);
+		var6.leg0.xRot = (float)Math.sin((double)var7 * 0.6662D) * 1.4F;
+		var6.leg1.xRot = (float)Math.sin((double)var7 * 0.6662D + Math.PI) * 1.4F;
 		var6.head.render();
 		var6.body.render();
 		var6.arm0.render();

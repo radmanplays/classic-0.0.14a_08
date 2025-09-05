@@ -5,27 +5,30 @@ import com.mojang.minecraft.character.Zombie;
 import com.mojang.minecraft.gui.Font;
 import com.mojang.minecraft.gui.PauseScreen;
 import com.mojang.minecraft.gui.Screen;
-import com.mojang.minecraft.level.Chunk;
 import com.mojang.minecraft.level.Level;
 import com.mojang.minecraft.level.LevelIO;
-import com.mojang.minecraft.level.LevelRenderer;
 import com.mojang.minecraft.level.levelgen.LevelGen;
 import com.mojang.minecraft.level.tile.Tile;
 import com.mojang.minecraft.particle.Particle;
 import com.mojang.minecraft.particle.ParticleEngine;
 import com.mojang.minecraft.phys.AABB;
+import com.mojang.minecraft.player.MovementInputFromOptions;
+import com.mojang.minecraft.player.Player;
+import com.mojang.minecraft.renderer.Chunk;
 import com.mojang.minecraft.renderer.Frustum;
+import com.mojang.minecraft.renderer.LevelRenderer;
 import com.mojang.minecraft.renderer.Tesselator;
 import com.mojang.minecraft.renderer.Textures;
 import com.mojang.util.GLAllocation;
 import net.lax1dude.eaglercraft.EagRuntime;
 import net.lax1dude.eaglercraft.EagUtils;
-
-import com.mojang.minecraft.level.DirtyChunkSorter;
+import com.mojang.minecraft.renderer.DirtyChunkSorter;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.TreeSet;
 import java.util.zip.GZIPOutputStream;
 
 import org.lwjgl.LWJGLException;
@@ -47,30 +50,39 @@ public final class Minecraft implements Runnable {
 	private FloatBuffer fogColor0 = GLAllocation.createFloatBuffer(4);
 	private FloatBuffer fogColor1 = GLAllocation.createFloatBuffer(4);
 	private Timer timer = new Timer(20.0F);
-	public Level level;
+	private Level level;
 	private LevelRenderer levelRenderer;
 	private Player player;
 	private int paintTexture = 1;
 	private ParticleEngine particleEngine;
 	public User user = null;
-	private ArrayList entities = new ArrayList();
 	private int yMouseAxis = 1;
 	private Textures textures;
 	public Font font;
 	private int editMode = 0;
 	private Screen screen = null;
-	public LevelIO levelIo = new LevelIO(this);
+	private LevelIO levelIo = new LevelIO(this);
 	private LevelGen levelGen = new LevelGen(this);
-	volatile boolean running = false;
+	private int ticksRan = 0;
+	public String loadMapUser = null;
+	public int loadMapID = 0;
+	private static final int[] creativeTiles = new int[]{Tile.rock.id, Tile.dirt.id, Tile.stoneBrick.id, Tile.wood.id, Tile.bush.id, Tile.log.id, Tile.leaf.id, Tile.sand.id, Tile.gravel.id};
+	private float fogColorRed = 0.5F;
+	private float fogColorGreen = 0.8F;
+	private float fogColorBlue = 1.0F;
+	private volatile boolean running = false;
 	private String fpsString = "";
 	private boolean mouseGrabbed = false;
+	private int prevFrameTime = 0;
+	private float renderDistance = 0.0F;
 	private IntBuffer viewportBuffer = GLAllocation.createIntBuffer(16);
 	private IntBuffer selectBuffer = GLAllocation.createIntBuffer(2000);
 	private HitResult hitResult = null;
+	private volatile int unusedInt1 = 0;
+	private volatile int unusedInt2 = 0;
 	private FloatBuffer lb = GLAllocation.createFloatBuffer(16);
 	private String title = "";
 	private String text = "";
-	private long prevFrameTime = System.currentTimeMillis();
 	
 	public Minecraft(int var2, int var3, boolean var4) {
 		this.width = width;
@@ -105,27 +117,23 @@ public final class Minecraft implements Runnable {
 		}
 
 	}
-	
-	private void attemptSaveLevel() {
+
+	public final void destroy() {
+		Minecraft var2 = this;
 		try {
-			LevelIO.save(this.level, new VFile2("level.dat"));
+			LevelIO.save(var2.level, new VFile2("level.dat"));
 		} catch (Exception var1) {
 			var1.printStackTrace();
 		}
-	}
-
-	public final void destroy() {
-		this.attemptSaveLevel();
 		EagRuntime.destroy();
 	}
 
 	public final void run() {
 		this.running = true;
+
 		try {
 			Minecraft var4 = this;
-			float var8 = 0.5F;
-			float var9 = 0.8F;
-			this.fogColor0.put(new float[]{var8, var9, 1.0F, 1.0F});
+			this.fogColor0.put(new float[]{this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 1.0F});
 			this.fogColor0.flip();
 			this.fogColor1.put(new float[]{(float)14 / 255.0F, (float)11 / 255.0F, (float)10 / 255.0F, 1.0F});
 			this.fogColor1.flip();
@@ -137,16 +145,16 @@ public final class Minecraft implements Runnable {
 				this.width = Display.getWidth();
 				this.height = Display.getHeight();
 			}
-			
-			Display.setTitle("Minecraft 0.0.13a_03");
+
+			Display.setTitle("Minecraft 0.0.14a_08");
 
 			Display.create();
 			Keyboard.create();
 			Mouse.create();
+
 			checkGlError("Pre startup");
 			GL11.glEnable(GL11.GL_TEXTURE_2D);
 			GL11.glShadeModel(GL11.GL_SMOOTH);
-			GL11.glClearColor(var8, var9, 1.0F, 0.0F);
 			GL11.glClearDepth(1.0D);
 			GL11.glEnable(GL11.GL_DEPTH_TEST);
 			GL11.glDepthFunc(GL11.GL_LEQUAL);
@@ -158,35 +166,46 @@ public final class Minecraft implements Runnable {
 			GL11.glMatrixMode(GL11.GL_MODELVIEW);
 			checkGlError("Startup");
 			this.font = new Font("/default.gif", this.textures);
-			IntBuffer var1 = GLAllocation.createIntBuffer(256);
-			var1.clear().limit(256);
+			IntBuffer var8 = GLAllocation.createIntBuffer(256);
+			var8.clear().limit(256);
 			GL11.glViewport(0, 0, this.width, this.height);
-			this.level = new Level();
-			boolean var2 = false;
+			boolean var9 = false;
 
 			try {
-				var2 = var4.levelIo.load(var4.level, new VFile2("level.dat"));
-				if(!var2) {
-					var2 = var4.levelIo.loadLegacy(var4.level, new VFile2("level.dat"));
-				}
-			} catch (Exception var19) {
-				var2 = false;
+					Level var10 = null;
+					var10 = var4.levelIo.load(new VFile2("level.dat"));
+					var9 = var10 != null;
+					if(!var9) {
+						var10 = var4.levelIo.loadLegacy(new VFile2("level.dat"));
+						var9 = var10 != null;
+					}
+
+					var4.setLevel(var10);
+			} catch (Exception var20) {
+				var20.printStackTrace();
+				var9 = false;
 			}
 
-			if(!var2) {
-				String var26 = this.user != null ? this.user.name : "anonymous";
-				this.levelGen.generateLevel(this.level, var26, 256, 256, 64);
+			if(!var9) {
+				this.generateLevel(1);
 			}
-			this.levelRenderer = new LevelRenderer(this.level, this.textures);
-			this.player = new Player(this.level);
+
+			this.levelRenderer = new LevelRenderer(this.textures);
 			this.particleEngine = new ParticleEngine(this.level, this.textures);
-		} catch (Exception var9) {
-			var9.printStackTrace();
+			this.player = new Player(this.level, new MovementInputFromOptions());
+			this.player.resetPos();
+			if(this.level != null) {
+				this.levelRenderer.setLevel(this.level);
+			}
+
+			checkGlError("Post startup");
+		} catch (Exception var26) {
+			var26.printStackTrace();
 			System.out.println("Failed to start Minecraft");
-			destroy();
+			return;
 		}
-		
-		long var25 = System.currentTimeMillis();
+
+		long var1 = System.currentTimeMillis();
 		int var3 = 0;
 
 		try {
@@ -217,6 +236,7 @@ public final class Minecraft implements Runnable {
 					var27.a = var27.fps;
 
 					for(int var28 = 0; var28 < this.timer.ticks; ++var28) {
+						++this.ticksRan;
 						this.tick();
 					}
 
@@ -225,21 +245,25 @@ public final class Minecraft implements Runnable {
 					checkGlError("Post render");
 					++var3;
 
-					while(System.currentTimeMillis() >= var25 + 1000L) {
+					while(System.currentTimeMillis() >= var1 + 1000L) {
 						this.fpsString = var3 + " fps, " + Chunk.updates + " chunk updates";
 						Chunk.updates = 0;
-						var25 += 1000L;
+						var1 += 1000L;
 						var3 = 0;
 					}
-			}
+				}
 
 			return;
-		} catch (Exception var22) {
-			var22.printStackTrace();
+		} catch (Exception var24) {
+			var24.printStackTrace();
 		} finally {
 			this.destroy();
 		}
 
+	}
+	
+	public final void stop() {
+		this.running = false;
 	}
 
 	public final void grabMouse() {
@@ -252,11 +276,7 @@ public final class Minecraft implements Runnable {
 	
 	private void releaseMouse() {
 		if(this.mouseGrabbed) {
-			Player var1 = this.player;
-
-			for(int var2 = 0; var2 < 10; ++var2) {
-				var1.keys[var2] = false;
-			}
+			this.player.releaseAllKeys();
 			this.mouseGrabbed = false;
 			Mouse.setGrabbed(false);
 			this.setScreen(new PauseScreen());
@@ -270,188 +290,178 @@ public final class Minecraft implements Runnable {
 
 	    saveCountdown--;
 	    if (saveCountdown <= 0) {
-	        this.attemptSaveLevel();
+	    	LevelIO.save(this.level, new VFile2("level.dat"));
 	        saveCountdown = 600;
 	    }
 	}
 	
+
+	private void clickMouse() {
+		if(this.hitResult != null) {
+			Tile var1 = Tile.tiles[this.level.getTile(this.hitResult.x, this.hitResult.y, this.hitResult.z)];
+			if(this.editMode == 0) {
+				boolean var7 = this.level.setTile(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);
+				if(var1 != null && var7) {
+					var1.destroy(this.level, this.hitResult.x, this.hitResult.y, this.hitResult.z, this.particleEngine);
+				}
+
+			} else {
+				int var2 = this.hitResult.x;
+				int var6 = this.hitResult.y;
+				int var3 = this.hitResult.z;
+				if(this.hitResult.f == 0) {
+					--var6;
+				}
+
+				if(this.hitResult.f == 1) {
+					++var6;
+				}
+
+				if(this.hitResult.f == 2) {
+					--var3;
+				}
+
+				if(this.hitResult.f == 3) {
+					++var3;
+				}
+
+				if(this.hitResult.f == 4) {
+					--var2;
+				}
+
+				if(this.hitResult.f == 5) {
+					++var2;
+				}
+
+				Tile var4 = Tile.tiles[this.level.getTile(var2, var6, var3)];
+				if(var4 == null || var4 == Tile.water || var4 == Tile.calmWater || var4 == Tile.lava || var4 == Tile.calmLava) {
+					AABB var8 = Tile.tiles[this.paintTexture].getAABB(var2, var6, var3);
+					if(var8 == null || (this.player.bb.intersects(var8) ? false : this.level.isFree(var8))) {
+						this.level.setTile(var2, var6, var3, this.paintTexture);
+						Tile.tiles[this.paintTexture].onBlockAdded(this.level, var2, var6, var3);
+					}
+				}
+
+			}
+		}
+	}
+	
 	private void tick() {
-		int var4;
-		int var12;
-		int var13;
-		int var14;
-		if(this.screen == null) {
-			label223:
+		int var2;
+		LevelRenderer var6;
+		if(this.screen != null) {
+			this.prevFrameTime = this.ticksRan + 10000;
+		} else {
 			while(true) {
+				int var1;
 				if(Mouse.isMouseGrabbed() || Mouse.isActuallyGrabbed()) {
 					this.mouseGrabbed = true;
 				}
-				boolean var3;
 				while(Mouse.next()) {
+					var1 = Mouse.getEventDWheel();
+					int var3;
+					Minecraft var5;
+					if(var1 != 0) {
+						var2 = var1;
+						var5 = this;
+						if(var1 > 0) {
+							var2 = 1;
+						}
+
+						if(var2 < 0) {
+							var2 = -1;
+						}
+
+						var3 = 0;
+
+						for(int var4 = 0; var4 < creativeTiles.length; ++var4) {
+							if(creativeTiles[var4] == var5.paintTexture) {
+								var3 = var4;
+							}
+						}
+
+						for(var3 += var2; var3 < 0; var3 += creativeTiles.length) {
+						}
+
+						while(var3 >= creativeTiles.length) {
+							var3 -= creativeTiles.length;
+						}
+
+						var5.paintTexture = creativeTiles[var3];
+					}
+
 					if(!this.mouseGrabbed && Mouse.getEventButtonState()) {
 						this.grabMouse();
 					} else {
 						if(Mouse.getEventButton() == 0 && Mouse.getEventButtonState()) {
-							if(this.editMode == 0) {
-								if(this.hitResult != null) {
-									Tile var2 = Tile.tiles[this.level.getTile(this.hitResult.x, this.hitResult.y, this.hitResult.z)];
-									var3 = this.level.setTile(this.hitResult.x, this.hitResult.y, this.hitResult.z, 0);
-									if(var2 != null && var3) {
-										var2.destroy(this.level, this.hitResult.x, this.hitResult.y, this.hitResult.z, this.particleEngine);
-									}
-								}
-							} else if(this.hitResult != null) {
-								label230: {
-									var12 = this.hitResult.x;
-									var13 = this.hitResult.y;
-									var4 = this.hitResult.z;
-									if(this.hitResult.f == 0) {
-										--var13;
-									}
-
-									if(this.hitResult.f == 1) {
-										++var13;
-									}
-
-									if(this.hitResult.f == 2) {
-										--var4;
-									}
-
-									if(this.hitResult.f == 3) {
-										++var4;
-									}
-
-									if(this.hitResult.f == 4) {
-										--var12;
-									}
-
-									if(this.hitResult.f == 5) {
-										++var12;
-									}
-
-									AABB var5 = Tile.tiles[this.paintTexture].getAABB(var12, var13, var4);
-									if(var5 != null) {
-										AABB var7 = var5;
-										Minecraft var6 = this;
-										boolean var10000;
-										if(this.player.bb.intersects(var5)) {
-											var10000 = false;
-										} else {
-											var14 = 0;
-
-											while(true) {
-												if(var14 >= var6.entities.size()) {
-													var10000 = true;
-													break;
-												}
-
-												if(((Entity)var6.entities.get(var14)).bb.intersects(var7)) {
-													var10000 = false;
-													break;
-												}
-
-												++var14;
-											}
-										}
-
-										if(!var10000) {
-											break label230;
-										}
-									}
-
-									this.level.setTile(var12, var13, var4, this.paintTexture);
-								}
-							}
+							this.clickMouse();
+							this.prevFrameTime = this.ticksRan;
 						}
 
 						if(Mouse.getEventButton() == 1 && Mouse.getEventButtonState()) {
 							this.editMode = (this.editMode + 1) % 2;
 						}
+
+						if(Mouse.getEventButton() == 2 && Mouse.getEventButtonState()) {
+							var5 = this;
+							if(this.hitResult != null) {
+								var2 = this.level.getTile(this.hitResult.x, this.hitResult.y, this.hitResult.z);
+								if(var2 == Tile.grass.id) {
+									var2 = Tile.dirt.id;
+								}
+
+								for(var3 = 0; var3 < creativeTiles.length; ++var3) {
+									if(var2 == creativeTiles[var3]) {
+										var5.paintTexture = creativeTiles[var3];
+									}
+								}
+							}
+						}
 					}
 				}
 
-				while(true) {
-					if(!Keyboard.next()) {
-						break label223;
-					}
-
-					Player var19 = this.player;
-					int var10001 = Keyboard.getEventKey();
-					var3 = Keyboard.getEventKeyState();
-					var12 = var10001;
-					Player var1 = var19;
-					byte var15 = -1;
-					if(var12 == 200 || var12 == 17) {
-						var15 = 0;
-					}
-
-					if(var12 == 208 || var12 == 31) {
-						var15 = 1;
-					}
-
-					if(var12 == 203 || var12 == 30) {
-						var15 = 2;
-					}
-
-					if(var12 == 205 || var12 == 32) {
-						var15 = 3;
-					}
-
-					if(var12 == 57 || var12 == 219) {
-						var15 = 4;
-					}
-
-					if(var15 >= 0) {
-						var1.keys[var15] = var3;
-					}
-
+				while(Keyboard.next()) {
+					this.player.setKey(Keyboard.getEventKey(), Keyboard.getEventKeyState());
 					if(Keyboard.getEventKeyState()) {
 						if(Keyboard.getEventKey() == Keyboard.KEY_ESCAPE) {
 							this.releaseMouse();
-						}
-
-						if(Keyboard.getEventKey() == Keyboard.KEY_RETURN) {
-							this.attemptSaveLevel();
 						}
 
 						if(Keyboard.getEventKey() == Keyboard.KEY_R) {
 							this.player.resetPos();
 						}
 
-						if(Keyboard.getEventKey() == Keyboard.KEY_1) {
-							this.paintTexture = 1;
+						if(Keyboard.getEventKey() == Keyboard.KEY_RETURN) {
+							this.level.setSpawnPos((int)this.player.x, (int)this.player.y, (int)this.player.z, this.player.yRot);
+							this.player.resetPos();
 						}
 
-						if(Keyboard.getEventKey() == Keyboard.KEY_2) {
-							this.paintTexture = 3;
-						}
-
-						if(Keyboard.getEventKey() == Keyboard.KEY_3) {
-							this.paintTexture = 4;
-						}
-
-						if(Keyboard.getEventKey() == Keyboard.KEY_4) {
-							this.paintTexture = 5;
-						}
-
-						if(Keyboard.getEventKey() == Keyboard.KEY_6) {
-							this.paintTexture = 6;
+						for(var1 = 0; var1 < 9; ++var1) {
+							if(Keyboard.getEventKey() == var1 + 2) {
+								this.paintTexture = creativeTiles[var1];
+							}
 						}
 
 						if(Keyboard.getEventKey() == Keyboard.KEY_Y) {
 							this.yMouseAxis = -this.yMouseAxis;
 						}
 
-						if(Keyboard.getEventKey() == Keyboard.KEY_G) {
-							this.entities.add(new Zombie(this.level, this.textures, this.player.x, this.player.y, this.player.z));
+						if(Keyboard.getEventKey() == Keyboard.KEY_G && this.level.entities.size() < 256) {
+							this.level.entities.add(new Zombie(this.level, this.player.x, this.player.y, this.player.z));
 						}
 
 						if(Keyboard.getEventKey() == Keyboard.KEY_F) {
-							LevelRenderer var8 = this.levelRenderer;
-							var8.drawDistance = (var8.drawDistance + 1) % 4;
+							var6 = this.levelRenderer;
+							var6.drawDistance = (var6.drawDistance + 1) % 4;
 						}
 					}
 				}
+
+				if(Mouse.isButtonDown(0) && (float)(this.ticksRan - this.prevFrameTime) >= this.timer.ticksPerSecond / 4.0F && this.mouseGrabbed) {
+					this.clickMouse();
+					this.prevFrameTime = this.ticksRan;
+				}
+				break;
 			}
 		}
 
@@ -462,38 +472,16 @@ public final class Minecraft implements Runnable {
 			}
 		}
 
-		Level var9 = this.level;
-		var9.unprocessed += var9.width * var9.height * var9.depth;
-		var12 = var9.unprocessed / 200;
-		var9.unprocessed -= var12 * 200;
+		var6 = this.levelRenderer;
+		++var6.cloudTickCounter;
+		this.level.tick();
+		ParticleEngine var7 = this.particleEngine;
 
-		for(var13 = 0; var13 < var12; ++var13) {
-			var9.randValue = var9.randValue * 1664525 + 1013904223;
-			var4 = var9.randValue >> 16 & var9.width - 1;
-			var9.randValue = var9.randValue * 1664525 + 1013904223;
-			var14 = var9.randValue >> 16 & var9.depth - 1;
-			var9.randValue = var9.randValue * 1664525 + 1013904223;
-			int var17 = var9.randValue >> 16 & var9.height - 1;
-			byte var18 = var9.blocks[(var14 * var9.height + var17) * var9.width + var4];
-			if(Tile.shouldTick[var18]) {
-				Tile.tiles[var18].tick(var9, var4, var14, var17, var9.random);
-			}
-		}
-
-		ParticleEngine var10 = this.particleEngine;
-
-		for(var12 = 0; var12 < var10.particles.size(); ++var12) {
-			Particle var16 = (Particle)var10.particles.get(var12);
-			var16.tick();
-			if(var16.removed) {
-				var10.particles.remove(var12--);
-			}
-		}
-
-		for(int var11 = 0; var11 < this.entities.size(); ++var11) {
-			((Entity)this.entities.get(var11)).tick();
-			if(((Entity)this.entities.get(var11)).removed) {
-				this.entities.remove(var11--);
+		for(var2 = 0; var2 < var7.particles.size(); ++var2) {
+			Particle var8 = (Particle)var7.particles.get(var2);
+			var8.tick();
+			if(var8.removed) {
+				var7.particles.remove(var2--);
 			}
 		}
 
@@ -503,8 +491,8 @@ public final class Minecraft implements Runnable {
 
 	private void orientCamera(float var1) {
 		GL11.glTranslatef(0.0F, 0.0F, -0.3F);
-		GL11.glRotatef(this.player.xRot, 1.0F, 0.0F, 0.0F);
-		GL11.glRotatef(this.player.yRot, 0.0F, 1.0F, 0.0F);
+		GL11.glRotatef(this.player.xRot - this.player.xRotI * (1.0F - var1), 1.0F, 0.0F, 0.0F);
+		GL11.glRotatef(this.player.yRot - this.player.yRotI * (1.0F - var1), 0.0F, 1.0F, 0.0F);
 		float var2 = this.player.xo + (this.player.x - this.player.xo) * var1;
 		float var3 = this.player.yo + (this.player.y - this.player.yo) * var1;
 		float var4 = this.player.zo + (this.player.z - this.player.zo) * var1;
@@ -526,26 +514,21 @@ public final class Minecraft implements Runnable {
 			}
 		}
 		GL11.glViewport(0, 0, this.width, this.height);
-		float var5;
+		int var2;
+		int var3;
+		int var4;
+		int var5;
 		if(this.mouseGrabbed) {
-			float var2 = 0.0F;
-			float var3 = 0.0F;
-			var2 = (float)Mouse.getDX();
-			var3 = (float)Mouse.getDY();
-			var5 = var3 * (float)this.yMouseAxis;
-			Player var19 = this.player;
-			var19.yRot = (float)((double)var19.yRot + (double)var2 * 0.15D);
-			var19.xRot = (float)((double)var19.xRot - (double)var5 * 0.15D);
-			if(var19.xRot < -90.0F) {
-				var19.xRot = -90.0F;
-			}
+			var2 = 0;
+			var3 = 0;
+			var2 = Mouse.getDX();
+			var3 = Mouse.getDY();
 
-			if(var19.xRot > 90.0F) {
-				var19.xRot = 90.0F;
-			}
+			this.player.turn((float)var2, (float)(var3 * this.yMouseAxis));
 		}
 
-		this.checkGlError("Set viewport");
+		GL11.glViewport(0, 0, this.width, this.height);
+		checkGlError("Set viewport");
 		float pitch = this.player.xRot;
 		float yaw = this.player.yRot;
 
@@ -577,90 +560,78 @@ public final class Minecraft implements Runnable {
 		);
 
 		this.hitResult = this.level.clip(cameraPos, reachVec);
-		this.checkGlError("Picked");
+		checkGlError("Picked");
+		this.fogColorRed = 0.92F;
+		this.fogColorGreen = 0.98F;
+		this.fogColorBlue = 1.0F;
+		GL11.glClearColor(this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 0.0F);
 		GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_COLOR_BUFFER_BIT);
+		this.renderDistance = (float)(1024 >> (this.levelRenderer.drawDistance << 1));
 		GL11.glMatrixMode(GL11.GL_PROJECTION);
 		GL11.glLoadIdentity();
-		GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, 1024.0F);
+		GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, this.renderDistance);
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 		GL11.glLoadIdentity();
-		
-	    if (!Display.isActive() || !Mouse.isMouseGrabbed() || !Mouse.isActuallyGrabbed()) {
-	        if (System.currentTimeMillis() - prevFrameTime > 250L) {
-	            if (this.screen == null) {
-	            	releaseMouse();
-	            }
-	        }
-	    } else {
-	        prevFrameTime = System.currentTimeMillis();
-	    }
-	    
 		this.orientCamera(var1);
 		checkGlError("Set up camera");
 		GL11.glEnable(GL11.GL_CULL_FACE);
-		Frustum var18 = Frustum.getFrustum();
-		Frustum var22 = var18;
-		LevelRenderer var23 = this.levelRenderer;
+		Frustum var23 = Frustum.getFrustum();
+		Frustum var24 = var23;
+		LevelRenderer var18 = this.levelRenderer;
 
-		for(int var24 = 0; var24 < var23.chunks.length; ++var24) {
-			var23.chunks[var24].visible = var22.cubeInFrustum(var23.chunks[var24].aabb);
+		for(var5 = 0; var5 < var18.sortedChunks.length; ++var5) {
+			var18.sortedChunks[var5].isInFrustum(var24);
 		}
 
-		Player var4 = this.player;
-		var23 = this.levelRenderer;
-		LevelRenderer var31 = var23;
-		ArrayList var32 = null;
+		Player var19 = this.player;
+		var18 = this.levelRenderer;
+		TreeSet var28 = new TreeSet(new DirtyChunkSorter(var19));
+		var28.addAll(var18.dirtyChunks);
+		int var25 = 4;
+		Iterator var29 = var28.iterator();
 
-		for(int var9 = 0; var9 < var31.chunks.length; ++var9) {
-			Chunk var37 = var31.chunks[var9];
-			if(var37.isDirty()) {
-				if(var32 == null) {
-					var32 = new ArrayList();
-				}
-
-				var32.add(var37);
+		while(var29.hasNext()) {
+			Chunk var30 = (Chunk)var29.next();
+			var30.rebuild();
+			var18.dirtyChunks.remove(var30);
+			--var25;
+			if(var25 == 0) {
+				break;
 			}
 		}
 
-		ArrayList var30 = var32;
-		if(var32 != null) {
-			Collections.sort(var32, new DirtyChunkSorter(var4));
-
-			for(int var6 = 0; var6 < 4 && var6 < var30.size(); ++var6) {
-				((Chunk)var30.get(var6)).rebuild();
-			}
-		}
 
 		checkGlError("Update chunks");
+		boolean var21 = this.level.isSolid(this.player.x, this.player.y, this.player.z, 0.1F);
 		this.setupFog(0);
 		GL11.glEnable(GL11.GL_FOG);
 		this.levelRenderer.render(this.player, 0);
+		if(var21) {
+			var4 = (int)this.player.x;
+			var5 = (int)this.player.y;
+			var25 = (int)this.player.z;
+
+			for(var2 = var4 - 1; var2 <= var4 + 1; ++var2) {
+				for(int var7 = var5 - 1; var7 <= var5 + 1; ++var7) {
+					for(int var8 = var25 - 1; var8 <= var25 + 1; ++var8) {
+						this.levelRenderer.render(var2, var7, var8);
+					}
+				}
+			}
+		}
+
 		checkGlError("Rendered level");
-
-		Entity var25;
-		int var26;
-		for(var26 = 0; var26 < this.entities.size(); ++var26) {
-			var25 = (Entity)this.entities.get(var26);
-			if(var25.isLit() && var18.cubeInFrustum(var25.bb)) {
-				((Entity)this.entities.get(var26)).render(var1);
-			}
-		}
-
+		this.levelRenderer.renderEntities(var23, var1);
 		checkGlError("Rendered entities");
-		this.particleEngine.render(this.player, var1, 0);
+		this.particleEngine.render(this.player, var1);
 		checkGlError("Rendered particles");
+		var18 = this.levelRenderer;
+		var18.renderSurroundingGround();
+		GL11.glDisable(GL11.GL_LIGHTING);
+		this.setupFog(-1);
+		this.levelRenderer.renderClouds(var1);
 		this.setupFog(1);
-		this.levelRenderer.render(this.player, 1);
-
-		for(var26 = 0; var26 < this.entities.size(); ++var26) {
-			var25 = (Entity)this.entities.get(var26);
-			if(!var25.isLit() && var18.cubeInFrustum(var25.bb)) {
-				((Entity)this.entities.get(var26)).render(var1);
-			}
-		}
-
-		this.particleEngine.render(this.player, var1, 1);
-		this.levelRenderer.compileSurroundingGround();
+		GL11.glEnable(GL11.GL_LIGHTING);
 		if(this.hitResult != null) {
 			GL11.glDisable(GL11.GL_LIGHTING);
 			GL11.glDisable(GL11.GL_ALPHA_TEST);
@@ -672,16 +643,18 @@ public final class Minecraft implements Runnable {
 
 		GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 		this.setupFog(0);
-		this.levelRenderer.compileSurroundingWater();
+		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+		var18 = this.levelRenderer;
+		GL11.glCallList(var18.surroundLists + 1);
 		GL11.glEnable(GL11.GL_BLEND);
 		GL11.glColorMask(false, false, false, false);
-		this.levelRenderer.render(this.player, 2);
+		this.levelRenderer.render(this.player, 1);
 		GL11.glColorMask(true, true, true, true);
-		this.levelRenderer.render(this.player, 2);
+		this.levelRenderer.render(this.player, 1);
 		GL11.glDisable(GL11.GL_BLEND);
 		GL11.glDisable(GL11.GL_LIGHTING);
-		GL11.glDisable(GL11.GL_TEXTURE_2D);
 		GL11.glDisable(GL11.GL_FOG);
+		GL11.glDisable(GL11.GL_TEXTURE_2D);
 		if(this.hitResult != null) {
 			GL11.glDepthFunc(GL11.GL_LESS);
 			GL11.glDisable(GL11.GL_ALPHA_TEST);
@@ -690,60 +663,55 @@ public final class Minecraft implements Runnable {
 			GL11.glEnable(GL11.GL_ALPHA_TEST);
 			GL11.glDepthFunc(GL11.GL_LEQUAL);
 		}
-	    if (this.height == 0) {
-	        return;
-	    }
-		int var27 = this.width * 240 / this.height;
-		int var24 = this.height * 240 / this.height;
-		int var6 = Mouse.getX() * var27 / this.width;
-		int var7 = var24 - Mouse.getY() * var24 / this.height - 1;
+		var4 = this.width * 240 / this.height;
+		var5 = this.height * 240 / this.height;
+		var25 = Mouse.getX() * var4 / this.width;
+		int var7 = var5 - Mouse.getY() * var5 / this.height - 1;
 		GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
 		GL11.glMatrixMode(GL11.GL_PROJECTION);
 		GL11.glLoadIdentity();
-		GL11.glOrtho(0.0D, (double)var27, (double)var24, 0.0D, 100.0D, 300.0D);
+		GL11.glOrtho(0.0D, (double)var4, (double)var5, 0.0D, 100.0D, 300.0D);
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 		GL11.glLoadIdentity();
 		GL11.glTranslatef(0.0F, 0.0F, -200.0F);
 		checkGlError("GUI: Init");
 		GL11.glPushMatrix();
-		GL11.glTranslatef((float)(var27 - 16), 16.0F, -50.0F);
-		Tesselator var34 = Tesselator.instance;
+		GL11.glTranslatef((float)(var4 - 16), 16.0F, -50.0F);
+		Tesselator var32 = Tesselator.instance;
 		GL11.glScalef(16.0F, 16.0F, 16.0F);
 		GL11.glRotatef(-30.0F, 1.0F, 0.0F, 0.0F);
 		GL11.glRotatef(45.0F, 0.0F, 1.0F, 0.0F);
 		GL11.glTranslatef(-1.5F, 0.5F, 0.5F);
 		GL11.glScalef(-1.0F, -1.0F, -1.0F);
-		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-		int var9 = this.textures.loadTexture("/terrain.png", 9728);
-		GL11.glBindTexture(GL11.GL_TEXTURE_2D, var9);
+		var3 = this.textures.loadTexture("/terrain.png", 9728);
+		GL11.glBindTexture(GL11.GL_TEXTURE_2D, var3);
 		GL11.glEnable(GL11.GL_TEXTURE_2D);
-		var34.begin();
-		Tile.tiles[this.paintTexture].render(var34, this.level, 0, -2, 0, 0);
-		var34.end();
+		var32.begin();
+		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+		Tile.tiles[this.paintTexture].render(var32, this.level, 0, -2, 0, 0);
+		var32.end();
 		GL11.glDisable(GL11.GL_TEXTURE_2D);
 		GL11.glPopMatrix();
-		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 		checkGlError("GUI: Draw selected");
-		this.font.drawShadow("0.0.13a_03", 2, 2, 16777215);
+		this.font.drawShadow("0.0.14a_08", 2, 2, 16777215);
 		this.font.drawShadow(this.fpsString, 2, 12, 16777215);
 		checkGlError("GUI: Draw text");
-		int var10 = var27 / 2;
-		int var20 = var24 / 2;
+		var4 /= 2;
+		var3 = var5 / 2;
 		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
-		var34.begin();
-		var34.vertex((float)(var10 + 1), (float)(var20 - 4), 0.0F);
-		var34.vertex((float)var10, (float)(var20 - 4), 0.0F);
-		var34.vertex((float)var10, (float)(var20 + 5), 0.0F);
-		var34.vertex((float)(var10 + 1), (float)(var20 + 5), 0.0F);
-		var34.vertex((float)(var10 + 5), (float)var20, 0.0F);
-		var34.vertex((float)(var10 - 4), (float)var20, 0.0F);
-		var34.vertex((float)(var10 - 4), (float)(var20 + 1), 0.0F);
-		var34.vertex((float)(var10 + 5), (float)(var20 + 1), 0.0F);
-		var34.end();
+		var32.begin();
+		var32.vertex((float)(var4 + 1), (float)(var3 - 4), 0.0F);
+		var32.vertex((float)var4, (float)(var3 - 4), 0.0F);
+		var32.vertex((float)var4, (float)(var3 + 5), 0.0F);
+		var32.vertex((float)(var4 + 1), (float)(var3 + 5), 0.0F);
+		var32.vertex((float)(var4 + 5), (float)var3, 0.0F);
+		var32.vertex((float)(var4 - 4), (float)var3, 0.0F);
+		var32.vertex((float)(var4 - 4), (float)(var3 + 1), 0.0F);
+		var32.vertex((float)(var4 + 5), (float)(var3 + 1), 0.0F);
+		var32.end();
 		checkGlError("GUI: Draw crosshair");
-		GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
 		if(this.screen != null) {
-			this.screen.render(var6, var7);
+			this.screen.render(var25, var7);
 		}
 
 		checkGlError("Rendered gui");
@@ -751,33 +719,42 @@ public final class Minecraft implements Runnable {
 	}
 	
 	private void setupFog(int var1) {
-		Tile var2 = Tile.tiles[this.level.getTile((int)this.player.x, (int)(this.player.y + 0.12F), (int)this.player.z)];
-		if(var2 != null && var2.getLiquidType() == 1) {
-			GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
-			GL11.glFogf(GL11.GL_FOG_DENSITY, 0.1F);
-			GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(0.02F, 0.02F, 0.2F, 1.0F));
-//			GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(0.3F, 0.3F, 0.5F, 1.0F));
-		} else if(var2 != null && var2.getLiquidType() == 2) {
-			GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
-			GL11.glFogf(GL11.GL_FOG_DENSITY, 2.0F);
-			GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(0.6F, 0.1F, 0.0F, 1.0F));
-//			GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(0.4F, 0.3F, 0.3F, 1.0F));
-		} else if(var1 == 0) {
-			GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
-			GL11.glFogf(GL11.GL_FOG_DENSITY, 0.001F);
-			GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor0);
+		if(var1 == -1) {
+			GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_LINEAR);
+			GL11.glFogf(GL11.GL_FOG_START, 0.0F);
+			GL11.glFogf(GL11.GL_FOG_END, this.renderDistance);
+			GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 1.0F));
 //			GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(1.0F, 1.0F, 1.0F, 1.0F));
-		} else if(var1 == 1) {
-			GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
-			GL11.glFogf(GL11.GL_FOG_DENSITY, 0.05F);
-			GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor1);
-			float var3 = 0.6F;
-//			GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(var3, var3, var3, 1.0F));
-		}
+		} else {
+			Tile var2 = Tile.tiles[this.level.getTile((int)this.player.x, (int)(this.player.y + 0.12F), (int)this.player.z)];
+			if(var2 != null && var2.getLiquidType() == 1) {
+				GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
+				GL11.glFogf(GL11.GL_FOG_DENSITY, 0.1F);
+				GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(0.02F, 0.02F, 0.2F, 1.0F));
+//				GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(0.3F, 0.3F, 0.7F, 1.0F));
+			} else if(var2 != null && var2.getLiquidType() == 2) {
+				GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
+				GL11.glFogf(GL11.GL_FOG_DENSITY, 2.0F);
+				GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(0.6F, 0.1F, 0.0F, 1.0F));
+//				GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(0.4F, 0.3F, 0.3F, 1.0F));
+			} else if(var1 == 0) {
+				GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_LINEAR);
+				GL11.glFogf(GL11.GL_FOG_START, 0.0F);
+				GL11.glFogf(GL11.GL_FOG_END, this.renderDistance);
+				GL11.glFog(GL11.GL_FOG_COLOR, this.getBuffer(this.fogColorRed, this.fogColorGreen, this.fogColorBlue, 1.0F));
+//				GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(1.0F, 1.0F, 1.0F, 1.0F));
+			} else if(var1 == 1) {
+				GL11.glFogi(GL11.GL_FOG_MODE, GL11.GL_EXP);
+				GL11.glFogf(GL11.GL_FOG_DENSITY, 0.01F);
+				GL11.glFog(GL11.GL_FOG_COLOR, this.fogColor1);
+				float var3 = 0.6F;
+//				GL11.glLightModel(GL11.GL_LIGHT_MODEL_AMBIENT, this.getBuffer(var3, var3, var3, 1.0F));
+			}
 
-//		GL11.glEnable(GL11.GL_COLOR_MATERIAL);
-//		GL11.glColorMaterial(GL11.GL_FRONT, GL11.GL_AMBIENT);
-		GL11.glEnable(GL11.GL_LIGHTING);
+//			GL11.glEnable(GL11.GL_COLOR_MATERIAL);
+//			GL11.glColorMaterial(GL11.GL_FRONT, GL11.GL_AMBIENT);
+			GL11.glEnable(GL11.GL_LIGHTING);
+		}
 	}
 
 	private FloatBuffer getBuffer(float a, float b, float c, float d) {
@@ -852,14 +829,27 @@ public final class Minecraft implements Runnable {
 		Display.update();
 	}
 
-	public final void generateNewLevel() {
-		String var1 = this.user != null ? this.user.name : "anonymous";
-		this.levelGen.generateLevel(this.level, var1, 256, 256, 64);
-		this.player.resetPos();
+	public final void generateLevel(int var1) {
+		String var2 = this.user != null ? this.user.name : "anonymous";
+		this.setLevel(this.levelGen.generateLevel(var2, 128 << var1, 128 << var1, 64));
+	}
 
-		while(0 < this.entities.size()) {
-			this.entities.remove(0);
+	private void setLevel(Level var1) {
+		this.level = var1;
+		if(this.levelRenderer != null) {
+			this.levelRenderer.setLevel(var1);
 		}
 
+		if(this.particleEngine != null) {
+			ParticleEngine var2 = this.particleEngine;
+			var2.particles.clear();
+		}
+
+		if(this.player != null) {
+			this.player.setLevel(var1);
+			this.player.resetPos();
+		}
+
+		System.gc();
 	}
 }

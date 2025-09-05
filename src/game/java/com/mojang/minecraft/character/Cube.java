@@ -66,7 +66,6 @@ public final class Cube {
 
 			for(int var2 = 0; var2 < var1.polygons.length; ++var2) {
 				Polygon var3 = var1.polygons[var2];
-				GL11.glColor3f(1.0F, 1.0F, 1.0F);
 
 				for(int var4 = 3; var4 >= 0; --var4) {
 					Vertex var5 = var3.vertices[var4];

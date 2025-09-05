@@ -1,12 +1,14 @@
 package com.mojang.minecraft;
 
 import com.mojang.minecraft.level.Level;
-import com.mojang.minecraft.level.tile.Tile;
 import com.mojang.minecraft.phys.AABB;
+import com.mojang.minecraft.renderer.Textures;
+import java.io.Serializable;
 import java.util.ArrayList;
 
-public class Entity {
-	private Level level;
+public class Entity implements Serializable {
+	public static final long serialVersionUID = 0L;
+	protected Level level;
 	public float xo;
 	public float yo;
 	public float zo;
@@ -18,32 +20,47 @@ public class Entity {
 	public float zd;
 	public float yRot;
 	public float xRot;
+	public float yRotI;
+	public float xRotI;
 	public AABB bb;
 	public boolean onGround = false;
 	public boolean horizontalCollision = false;
 	public boolean removed = false;
 	public float heightOffset = 0.0F;
-	private float bbWidth = 0.6F;
+	protected float bbWidth = 0.6F;
 	public float bbHeight = 1.8F;
 
 	public Entity(Level var1) {
 		this.level = var1;
-		this.resetPos();
+		this.setPos(0.0F, 0.0F, 0.0F);
 	}
 
-	protected final void resetPos() {
-		float var1 = (float)Math.random() * (float)(this.level.width - 2) + 1.0F;
-		float var2 = (float)(this.level.depth + 10);
-		float var3 = (float)Math.random() * (float)(this.level.height - 2) + 1.0F;
-		this.setPos(var1, var2, var3);
+	protected void resetPos() {
+		float var1 = (float)this.level.xSpawn + 0.5F;
+		float var2 = (float)this.level.ySpawn;
+
+		for(float var3 = (float)this.level.zSpawn + 0.5F; var2 > 0.0F; ++var2) {
+			this.setPos(var1, var2, var3);
+			if(this.level.getCubes(this.bb).size() == 0) {
+				break;
+			}
+		}
+
+		this.xd = this.yd = this.zd = 0.0F;
+		this.yRot = this.level.rotSpawn;
+		this.xRot = 0.0F;
 	}
 
-	public final void setSize(float var1, float var2) {
+	public void remove() {
+		this.removed = true;
+	}
+
+	public void setSize(float var1, float var2) {
 		this.bbWidth = var1;
 		this.bbHeight = var2;
 	}
 
-	public final void setPos(float var1, float var2, float var3) {
+	public void setPos(float var1, float var2, float var3) {
 		this.x = var1;
 		this.y = var2;
 		this.z = var3;
@@ -52,210 +69,71 @@ public class Entity {
 		this.bb = new AABB(var1 - var4, var2 - var5, var3 - var4, var1 + var4, var2 + var5, var3 + var4);
 	}
 
+	public void turn(float var1, float var2) {
+		this.yRot = (float)((double)this.yRot + (double)var1 * 0.15D);
+		this.xRot = (float)((double)this.xRot - (double)var2 * 0.15D);
+		if(this.xRot < -90.0F) {
+			this.xRot = -90.0F;
+		}
+
+		if(this.xRot > 90.0F) {
+			this.xRot = 90.0F;
+		}
+
+	}
+
+	public void interpolateTurn(float var1, float var2) {
+		float var3 = this.xRot;
+		float var4 = this.yRot;
+		this.yRot = (float)((double)this.yRot + (double)var1 * 0.15D);
+		this.xRot = (float)((double)this.xRot - (double)var2 * 0.15D);
+		if(this.xRot < -90.0F) {
+			this.xRot = -90.0F;
+		}
+
+		if(this.xRot > 90.0F) {
+			this.xRot = 90.0F;
+		}
+
+		this.xRotI = this.xRot - var3;
+		this.yRotI = this.yRot - var4;
+	}
+
 	public void tick() {
 		this.xo = this.x;
 		this.yo = this.y;
 		this.zo = this.z;
+		this.xRotI = 0.0F;
+		this.yRotI = 0.0F;
 	}
 
-	public final boolean isFree(float var1, float var2, float var3) {
-		AABB var11 = this.bb;
-		var11 = new AABB(var11.x0 + var3, var11.y0 + var2, var11.z0 + var3, var11.x1 + var1, var11.y1 + var2, var11.z1 + var3);
-		ArrayList var13 = this.level.getCubes(var11);
-		if(var13.size() > 0) {
-			return false;
-		} else {
-			Level var12 = this.level;
-			int var16 = (int)Math.floor((double)var11.x0);
-			int var17 = (int)Math.floor((double)(var11.x1 + 1.0F));
-			int var10 = (int)Math.floor((double)var11.y0);
-			int var5 = (int)Math.floor((double)(var11.y1 + 1.0F));
-			int var6 = (int)Math.floor((double)var11.z0);
-			int var15 = (int)Math.floor((double)(var11.z1 + 1.0F));
-			if(var16 < 0) {
-				var16 = 0;
-			}
-
-			if(var10 < 0) {
-				var10 = 0;
-			}
-
-			if(var6 < 0) {
-				var6 = 0;
-			}
-
-			if(var17 > var12.width) {
-				var17 = var12.width;
-			}
-
-			if(var5 > var12.depth) {
-				var5 = var12.depth;
-			}
-
-			if(var15 > var12.height) {
-				var15 = var12.height;
-			}
-
-			boolean var10000;
-			for(var16 = var16; var16 < var17; ++var16) {
-				for(int var7 = var10; var7 < var5; ++var7) {
-					for(int var8 = var6; var8 < var15; ++var8) {
-						Tile var9 = Tile.tiles[var12.getTile(var16, var7, var8)];
-						if(var9 != null && var9.getLiquidType() > 0) {
-							var10000 = true;
-							return !var10000;
-						}
-					}
-				}
-			}
-
-			var10000 = false;
-			return !var10000;
-		}
+	public boolean isFree(float var1, float var2, float var3) {
+		AABB var4 = this.bb.cloneMove(var1, var2, var3);
+		ArrayList var5 = this.level.getCubes(var4);
+		return var5.size() > 0 ? false : !this.level.containsAnyLiquid(var4);
 	}
 
-	public final void move(float var1, float var2, float var3) {
+	public void move(float var1, float var2, float var3) {
 		float var4 = var1;
 		float var5 = var2;
 		float var6 = var3;
-		Level var10000 = this.level;
-		AABB var9 = this.bb;
-		float var7 = var9.x0;
-		float var8 = var9.y0;
-		float var13 = var9.z0;
-		float var14 = var9.x1;
-		float var15 = var9.y1;
-		float var18 = var9.z1;
-		if(var1 < 0.0F) {
-			var7 += var1;
-		}
+		ArrayList var7 = this.level.getCubes(this.bb.expand(var1, var2, var3));
 
-		if(var1 > 0.0F) {
-			var14 += var1;
-		}
-
-		if(var2 < 0.0F) {
-			var8 += var2;
-		}
-
-		if(var2 > 0.0F) {
-			var15 += var2;
-		}
-
-		if(var3 < 0.0F) {
-			var13 += var3;
-		}
-
-		if(var3 > 0.0F) {
-			var18 += var3;
-		}
-
-		ArrayList var16 = var10000.getCubes(new AABB(var7, var8, var13, var14, var15, var18));
-
-		AABB var10;
-		float var11;
-		float var12;
-		int var17;
-		AABB var19;
-		float var20;
-		for(var17 = 0; var17 < var16.size(); ++var17) {
-			var19 = (AABB)var16.get(var17);
-			var11 = var2;
-			var10 = this.bb;
-			var9 = var19;
-			if(var10.x1 > var9.x0 && var10.x0 < var9.x1) {
-				if(var10.z1 > var9.z0 && var10.z0 < var9.z1) {
-					if(var2 > 0.0F && var10.y1 <= var9.y0) {
-						var12 = var9.y0 - var10.y1;
-						if(var12 < var2) {
-							var11 = var12;
-						}
-					}
-
-					if(var11 < 0.0F && var10.y0 >= var9.y1) {
-						var12 = var9.y1 - var10.y0;
-						if(var12 > var11) {
-							var11 = var12;
-						}
-					}
-
-					var20 = var11;
-				} else {
-					var20 = var2;
-				}
-			} else {
-				var20 = var2;
-			}
-
-			var2 = var20;
+		int var8;
+		for(var8 = 0; var8 < var7.size(); ++var8) {
+			var2 = ((AABB)var7.get(var8)).clipYCollide(this.bb, var2);
 		}
 
 		this.bb.move(0.0F, var2, 0.0F);
 
-		for(var17 = 0; var17 < var16.size(); ++var17) {
-			var19 = (AABB)var16.get(var17);
-			var11 = var1;
-			var10 = this.bb;
-			var9 = var19;
-			if(var10.y1 > var9.y0 && var10.y0 < var9.y1) {
-				if(var10.z1 > var9.z0 && var10.z0 < var9.z1) {
-					if(var1 > 0.0F && var10.x1 <= var9.x0) {
-						var12 = var9.x0 - var10.x1;
-						if(var12 < var1) {
-							var11 = var12;
-						}
-					}
-
-					if(var11 < 0.0F && var10.x0 >= var9.x1) {
-						var12 = var9.x1 - var10.x0;
-						if(var12 > var11) {
-							var11 = var12;
-						}
-					}
-
-					var20 = var11;
-				} else {
-					var20 = var1;
-				}
-			} else {
-				var20 = var1;
-			}
-
-			var1 = var20;
+		for(var8 = 0; var8 < var7.size(); ++var8) {
+			var1 = ((AABB)var7.get(var8)).clipXCollide(this.bb, var1);
 		}
 
 		this.bb.move(var1, 0.0F, 0.0F);
 
-		for(var17 = 0; var17 < var16.size(); ++var17) {
-			var19 = (AABB)var16.get(var17);
-			var11 = var3;
-			var10 = this.bb;
-			var9 = var19;
-			if(var10.x1 > var9.x0 && var10.x0 < var9.x1) {
-				if(var10.y1 > var9.y0 && var10.y0 < var9.y1) {
-					if(var3 > 0.0F && var10.z1 <= var9.z0) {
-						var12 = var9.z0 - var10.z1;
-						if(var12 < var3) {
-							var11 = var12;
-						}
-					}
-
-					if(var11 < 0.0F && var10.z0 >= var9.z1) {
-						var12 = var9.z1 - var10.z0;
-						if(var12 > var11) {
-							var11 = var12;
-						}
-					}
-
-					var20 = var11;
-				} else {
-					var20 = var3;
-				}
-			} else {
-				var20 = var3;
-			}
-
-			var3 = var20;
+		for(var8 = 0; var8 < var7.size(); ++var8) {
+			var3 = ((AABB)var7.get(var8)).clipZCollide(this.bb, var3);
 		}
 
 		this.bb.move(0.0F, 0.0F, var3);
@@ -278,18 +156,22 @@ public class Entity {
 		this.z = (this.bb.z0 + this.bb.z1) / 2.0F;
 	}
 
-	public final boolean isInWater() {
+	public boolean isInWater() {
 		return this.level.containsLiquid(this.bb.grow(0.0F, -0.4F, 0.0F), 1);
 	}
 
-	public final boolean isInLava() {
+	public boolean isInLava() {
 		return this.level.containsLiquid(this.bb, 2);
 	}
 
-	public final void moveRelative(float var1, float var2, float var3) {
-		float var4 = var1 * var1 + var2 * var2;
+	public void moveRelative(float var1, float var2, float var3) {
+		float var4 = (float)Math.sqrt((double)(var1 * var1 + var2 * var2));
 		if(var4 >= 0.01F) {
-			var4 = var3 / (float)Math.sqrt((double)var4);
+			if(var4 < 1.0F) {
+				var4 = 1.0F;
+			}
+
+			var4 = var3 / var4;
 			var1 *= var4;
 			var2 *= var4;
 			var3 = (float)Math.sin((double)this.yRot * Math.PI / 180.0D);
@@ -299,13 +181,24 @@ public class Entity {
 		}
 	}
 
-	public final boolean isLit() {
+	public boolean isLit() {
 		int var1 = (int)this.x;
 		int var2 = (int)this.y;
 		int var3 = (int)this.z;
 		return this.level.isLit(var1, var2, var3);
 	}
 
-	public void render(float var1) {
+	public float getBrightness() {
+		int var1 = (int)this.x;
+		int var2 = (int)(this.y + this.heightOffset / 2.0F);
+		int var3 = (int)this.z;
+		return this.level.getBrightness(var1, var2, var3);
+	}
+
+	public void render(Textures var1, float var2) {
+	}
+
+	public void setLevel(Level var1) {
+		this.level = var1;
 	}
 }

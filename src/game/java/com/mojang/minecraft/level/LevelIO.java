@@ -10,6 +10,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -23,63 +25,72 @@ public final class LevelIO {
 		this.minecraft = var1;
 	}
 
-	public final boolean load(Level var1, VFile2 var2) {
+	public final Level load(VFile2 var1) {
 		this.minecraft.beginLevelLoading("Loading level");
 		this.minecraft.levelLoadUpdate("Reading..");
 
 		try {
-			DataInputStream var11 = new DataInputStream(new GZIPInputStream(var2.getInputStream()));
-			int var12 = var11.readInt();
+			DataInputStream var10 = new DataInputStream(new GZIPInputStream(var1.getInputStream()));
+			int var12 = var10.readInt();
 			if(var12 != 656127880) {
-				return false;
+				return null;
 			} else {
-				byte var13 = var11.readByte();
-				if(var13 > 1) {
-					return false;
+				byte var13 = var10.readByte();
+				if(var13 > 2) {
+					return null;
+				} else if(var13 <= 1) {
+					System.out.println("Version is 1!");
+					String var15 = var10.readUTF();
+					String var16 = var10.readUTF();
+					long var7 = var10.readLong();
+					short var3 = var10.readShort();
+					short var4 = var10.readShort();
+					short var5 = var10.readShort();
+					byte[] var6 = new byte[var3 * var4 * var5];
+					var10.readFully(var6);
+					var10.close();
+					Level var11 = new Level();
+					var11.setData(var3, var5, var4, var6);
+					var11.name = var15;
+					var11.creator = var16;
+					var11.createTime = var7;
+					return var11;
 				} else {
-					String var14 = var11.readUTF();
-					String var3 = var11.readUTF();
-					long var8 = var11.readLong();
-					short var4 = var11.readShort();
-					short var5 = var11.readShort();
-					short var6 = var11.readShort();
-					byte[] var7 = new byte[var4 * var5 * var6];
-					var11.readFully(var7);
-					var11.close();
-					var1.setData(var4, var6, var5, var7);
-					var1.name = var14;
-					var1.creator = var3;
-					var1.createTime = var8;
-					return true;
+					ObjectInputStream var14 = new ObjectInputStream(var10);
+					Level var2 = (Level)var14.readObject();
+					var2.initTransient();
+					var14.close();
+					return var2;
 				}
 			}
-		} catch (Exception var10) {
-			var10.printStackTrace();
-			(new StringBuilder()).append("Failed to load level: ").append(var10.toString()).toString();
-			return false;
+		} catch (Exception var9) {
+			var9.printStackTrace();
+			(new StringBuilder()).append("Failed to load level: ").append(var9.toString()).toString();
+			return null;
 		}
 	}
 
-	public final boolean loadLegacy(Level var1, VFile2 var2) {
+	public final Level loadLegacy(VFile2 var1) {
 		this.minecraft.beginLevelLoading("Loading level");
 		this.minecraft.levelLoadUpdate("Reading..");
 
 		try {
-			DataInputStream var6 = new DataInputStream(new GZIPInputStream(var2.getInputStream()));
+			DataInputStream var5 = new DataInputStream(new GZIPInputStream(var1.getInputStream()));
 			String var7 = "--";
-			String var3 = "unknown";
-			byte[] var4 = new byte[256 << 8 << 6];
-			var6.readFully(var4);
-			var6.close();
-			var1.setData(256, 64, 256, var4);
-			var1.name = var7;
-			var1.creator = var3;
-			var1.createTime = 0L;
-			return true;
-		} catch (Exception var5) {
-			var5.printStackTrace();
-			(new StringBuilder()).append("Failed to load level: ").append(var5.toString()).toString();
-			return false;
+			String var2 = "unknown";
+			byte[] var3 = new byte[256 << 8 << 6];
+			var5.readFully(var3);
+			var5.close();
+			Level var6 = new Level();
+			var6.setData(256, 64, 256, var3);
+			var6.name = var7;
+			var6.creator = var2;
+			var6.createTime = 0L;
+			return var6;
+		} catch (Exception var4) {
+			var4.printStackTrace();
+			(new StringBuilder()).append("Failed to load level: ").append(var4.toString()).toString();
+			return null;
 		}
 	}
 
@@ -87,15 +98,10 @@ public final class LevelIO {
 		try {
 			DataOutputStream var3 = new DataOutputStream(new GZIPOutputStream(var1.getOutputStream()));
 			var3.writeInt(656127880);
-			var3.writeByte(1);
-			var3.writeUTF(var0.name);
-			var3.writeUTF(var0.creator);
-			var3.writeLong(var0.createTime);
-			var3.writeShort(var0.width);
-			var3.writeShort(var0.height);
-			var3.writeShort(var0.depth);
-			var3.write(var0.blocks);
-			var3.close();
+			var3.writeByte(2);
+			ObjectOutputStream var4 = new ObjectOutputStream(var3);
+			var4.writeObject(var0);
+			var4.close();
 		} catch (Exception var2) {
 			var2.printStackTrace();
 		}
