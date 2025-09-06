@@ -11,10 +11,6 @@ public final class DirtyChunkSorter implements Comparator {
 	}
 
 	public final int compare(Object var1, Object var2) {
-        if (var1 == null && var2 == null) return 0;
-        if (var1 == null) return 1;
-        if (var2 == null) return -1;
-
 		Chunk var10001 = (Chunk)var1;
 		Chunk var6 = (Chunk)var2;
 		Chunk var5 = var10001;
