@@ -573,6 +573,15 @@ public final class Minecraft implements Runnable {
 		GLU.gluPerspective(70.0F, (float)this.width / (float)this.height, 0.05F, this.renderDistance);
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 		GL11.glLoadIdentity();
+		
+	    if (!Display.isActive() || !Mouse.isMouseGrabbed() || !Mouse.isActuallyGrabbed()) {
+	        if (System.currentTimeMillis() - prevFrameTime > 250L) {
+	            if (this.screen == null) {
+	            	releaseMouse();
+	            }
+	        }
+	    }
+	    
 		this.orientCamera(var1);
 		checkGlError("Set up camera");
 		GL11.glEnable(GL11.GL_CULL_FACE);
