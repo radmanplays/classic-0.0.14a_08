@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
@@ -56,10 +57,10 @@ public final class LevelIO {
 					var11.createTime = var7;
 					return var11;
 				} else {
-					ObjectInputStream var14 = new ObjectInputStream(var10);
-					Level var2 = (Level)var14.readObject();
+					Level var2 = new Level();
+					var2.readFrom(var10, var13);
 					var2.initTransient();
-					var14.close();
+					var10.close();
 					return var2;
 				}
 			}
@@ -95,14 +96,11 @@ public final class LevelIO {
 	}
 
 	public static void save(Level var0, VFile2 var1) {
-		try {
-			DataOutputStream var3 = new DataOutputStream(new GZIPOutputStream(var1.getOutputStream()));
+		try (DataOutputStream var3 = new DataOutputStream(new GZIPOutputStream(var1.getOutputStream()))) {
 			var3.writeInt(656127880);
 			var3.writeByte(2);
-			ObjectOutputStream var4 = new ObjectOutputStream(var3);
-			var4.writeObject(var0);
-			var4.close();
-		} catch (Exception var2) {
+			var0.writeTo(var3);
+		} catch (IOException var2) {
 			var2.printStackTrace();
 		}
 	}

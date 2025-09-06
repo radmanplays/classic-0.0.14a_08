@@ -6,6 +6,10 @@ import com.mojang.minecraft.character.Vec3;
 import com.mojang.minecraft.level.tile.Tile;
 import com.mojang.minecraft.phys.AABB;
 import com.mojang.minecraft.renderer.LevelRenderer;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
@@ -720,4 +724,46 @@ public class Level implements Serializable {
 			return null;
 		}
 	}
+	
+	public void writeTo(DataOutputStream out) throws IOException {
+        out.writeInt(this.width);
+        out.writeInt(this.height);
+        out.writeInt(this.depth);
+        out.writeUTF(this.name != null ? this.name : "");
+        out.writeUTF(this.creator != null ? this.creator : "");
+        out.writeLong(this.createTime);
+        out.writeInt(this.xSpawn);
+        out.writeInt(this.ySpawn);
+        out.writeInt(this.zSpawn);
+        out.writeFloat(this.rotSpawn);
+
+        if (this.blocks != null) {
+            out.writeInt(this.blocks.length);
+            out.write(this.blocks);
+        } else {
+            out.writeInt(0);
+        }
+	}
+
+	public void readFrom(DataInputStream in, int version) throws IOException {
+        this.width = in.readInt();
+        this.height = in.readInt();
+        this.depth = in.readInt();
+        this.name = in.readUTF();
+        this.creator = in.readUTF();
+        this.createTime = in.readLong();
+        this.xSpawn = in.readInt();
+        this.ySpawn = in.readInt();
+        this.zSpawn = in.readInt();
+        this.rotSpawn = in.readFloat();
+
+        int len = in.readInt();
+        if (len > 0) {
+            this.blocks = new byte[len];
+            in.readFully(this.blocks);
+        }
+
+        this.initTransient();
+	}
+
 }

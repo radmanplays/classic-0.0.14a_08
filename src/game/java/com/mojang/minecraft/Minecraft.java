@@ -647,9 +647,9 @@ public final class Minecraft implements Runnable {
 		var18 = this.levelRenderer;
 		GL11.glCallList(var18.surroundLists + 1);
 		GL11.glEnable(GL11.GL_BLEND);
-		GL11.glColorMask(false, false, false, false);
-		this.levelRenderer.render(this.player, 1);
-		GL11.glColorMask(true, true, true, true);
+//		GL11.glColorMask(false, false, false, false);
+//		this.levelRenderer.render(this.player, 1);
+//		GL11.glColorMask(true, true, true, true);
 		this.levelRenderer.render(this.player, 1);
 		GL11.glDisable(GL11.GL_BLEND);
 		GL11.glDisable(GL11.GL_LIGHTING);
