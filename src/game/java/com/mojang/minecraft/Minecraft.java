@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.zip.GZIPOutputStream;
 
@@ -585,10 +586,11 @@ public final class Minecraft implements Runnable {
 
 		Player var19 = this.player;
 		var18 = this.levelRenderer;
-		TreeSet var28 = new TreeSet(new DirtyChunkSorter(var19));
+		List<Chunk> var28 = new ArrayList<>(var18.dirtyChunks);
+		var28.sort(new DirtyChunkSorter(var19));
 		var28.addAll(var18.dirtyChunks);
-		Iterator var29 = var28.iterator();
 		int var25 = 4;
+		Iterator var29 = var28.iterator();
 
 		while(var29.hasNext()) {
 			Chunk var30 = (Chunk)var29.next();
